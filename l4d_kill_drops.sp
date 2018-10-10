@@ -1,7 +1,11 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
+
+#pragma semicolon 1
+#pragma newdecls required
 #include <l4d2_weapon_stocks>
+
 #define CVAR_FLAGS FCVAR_PLUGIN
 #define PLUGIN_VERSION "22"
 
@@ -11,103 +15,102 @@
 #define ZOMBIECLASS_SPITTER	4
 #define ZOMBIECLASS_JOCKEY	5
 #define ZOMBIECLASS_CHARGER	6
-new ZOMBIECLASS_TANK=	5;
-new L4D2Version=false;
+int ZOMBIECLASS_TANK;
+bool L4D2Version=false;
 
-public Plugin:myinfo = 
-{
+public Plugin myinfo = {
 	name = "Recover And Drop",
-	author = "Pan Xiaohai",
+	author = "Rikka0w0 & Pan Xiaohai",
 	description = "Recover And Drop",
-	version = "1.23",
+	version = "1.9",
 	url = "http://forums.alliedmods.net"
 }
 
-new Handle:l4d_loot_enabled;
+// ConVars
+ConVar l4d_loot_enabled;
  
-new Handle:l4d_loot_boss_show_msg;
-new Handle:l4d_kill_show_msg;
+ConVar l4d_loot_boss_show_msg;
+ConVar l4d_kill_show_msg;
  
- 
-
-new Handle:l4d_loot_hunter;
-new Handle:l4d_loot_boomer;
-new Handle:l4d_loot_smoker;
-new Handle:l4d_loot_spitter;
-new Handle:l4d_loot_jockey;
-new Handle:l4d_loot_charger;
-new Handle:l4d_loot_tank;
-new Handle:l4d_loot_witch;
-
-new Handle:l4d_loot_hunter_num;
-new Handle:l4d_loot_boomer_num;
-new Handle:l4d_loot_smoker_num;
-new Handle:l4d_loot_spitter_num;
-new Handle:l4d_loot_jockey_num ;
-new Handle:l4d_loot_charger_num;
-new Handle:l4d_loot_tank_num;
-new Handle:l4d_loot_witch_num;
-
-
-new Handle:l4d_loot_killtank_reward;
-new Handle:l4d_loot_killwitch_reward;	
  
 
-new Handle:l4d_kill_addhp_enabled;
-new Handle:l4d_kill_addhp_lt50_mult;
+ConVar l4d_loot_hunter;
+ConVar l4d_loot_boomer;
+ConVar l4d_loot_smoker;
+ConVar l4d_loot_spitter;
+ConVar l4d_loot_jockey;
+ConVar l4d_loot_charger;
+ConVar l4d_loot_tank;
+ConVar l4d_loot_witch;
 
-new Handle:l4d_kill_addhp_distance;
+ConVar l4d_loot_hunter_num;
+ConVar l4d_loot_boomer_num;
+ConVar l4d_loot_smoker_num;
+ConVar l4d_loot_spitter_num;
+ConVar l4d_loot_jockey_num ;
+ConVar l4d_loot_charger_num;
+ConVar l4d_loot_tank_num;
+ConVar l4d_loot_witch_num;
+
+
+ConVar l4d_loot_killtank_reward;
+ConVar l4d_loot_killwitch_reward;	
+ 
+
+ConVar l4d_kill_addhp_enabled;
+ConVar l4d_kill_addhp_lt50_mult;
+
+ConVar l4d_kill_addhp_distance;
 
 
 
-new Handle: l4d_kill_addhp_weapon_pistol_1 ;
-new Handle: l4d_kill_addhp_weapon_msg_1 ;
-new Handle: l4d_kill_addhp_weapon_rifle_1 ;
-new Handle: l4d_kill_addhp_weapon_sniper_1 ;
-new Handle: l4d_kill_addhp_weapon_shotgun_1 ;
-new Handle: l4d_kill_addhp_weapon_melee ;
+ConVar  l4d_kill_addhp_weapon_pistol_1 ;
+ConVar  l4d_kill_addhp_weapon_msg_1 ;
+ConVar  l4d_kill_addhp_weapon_rifle_1 ;
+ConVar  l4d_kill_addhp_weapon_sniper_1 ;
+ConVar  l4d_kill_addhp_weapon_shotgun_1 ;
+ConVar  l4d_kill_addhp_weapon_melee ;
   
-new Handle: l4d_kill_addhp_weapon_pistol_2 ;
-new Handle: l4d_kill_addhp_weapon_msg_2 ;
-new Handle: l4d_kill_addhp_weapon_rifle_2 ;
-new Handle: l4d_kill_addhp_weapon_sniper_2 ;
-new Handle: l4d_kill_addhp_weapon_shotgun_2 ;
-new Handle: l4d_kill_addhp_weapon_other;
+ConVar  l4d_kill_addhp_weapon_pistol_2 ;
+ConVar  l4d_kill_addhp_weapon_msg_2 ;
+ConVar  l4d_kill_addhp_weapon_rifle_2 ;
+ConVar  l4d_kill_addhp_weapon_sniper_2 ;
+ConVar  l4d_kill_addhp_weapon_shotgun_2 ;
+ConVar  l4d_kill_addhp_weapon_other;
 
-new Handle: l4d_kill_addhp_hunter_1 ;
-new Handle: l4d_kill_addhp_smoker_1 ;
-new Handle: l4d_kill_addhp_boomer_1 ;
-new Handle: l4d_kill_addhp_spitter_1 ;
-new Handle: l4d_kill_addhp_jockey_1 ;
-new Handle: l4d_kill_addhp_charger_1 ; 
+ConVar  l4d_kill_addhp_hunter_1 ;
+ConVar  l4d_kill_addhp_smoker_1 ;
+ConVar  l4d_kill_addhp_boomer_1 ;
+ConVar  l4d_kill_addhp_spitter_1 ;
+ConVar  l4d_kill_addhp_jockey_1 ;
+ConVar  l4d_kill_addhp_charger_1 ; 
 
-new Handle: l4d_kill_addhp_hunter_2 ;
-new Handle: l4d_kill_addhp_smoker_2 ;
-new Handle: l4d_kill_addhp_boomer_2 ;
-new Handle: l4d_kill_addhp_spitter_2 ;
-new Handle: l4d_kill_addhp_jockey_2 ;
-new Handle: l4d_kill_addhp_charger_2 ; 
+ConVar  l4d_kill_addhp_hunter_2 ;
+ConVar  l4d_kill_addhp_smoker_2 ;
+ConVar  l4d_kill_addhp_boomer_2 ;
+ConVar  l4d_kill_addhp_spitter_2 ;
+ConVar  l4d_kill_addhp_jockey_2 ;
+ConVar  l4d_kill_addhp_charger_2 ; 
  
-new Handle:l4d_kill_addhp_tank;
-new Handle:l4d_kill_addhp_witch;	
+ConVar l4d_kill_addhp_tank;
+ConVar l4d_kill_addhp_witch;	
  
 
-new Handle:l4d_kill_addhp_mult;
-new Handle:l4d_loot_headshot ;
-new Handle:l4d_loot_headshotno ;
+ConVar l4d_kill_addhp_mult;
+ConVar l4d_loot_headshot ;
+ConVar l4d_loot_headshotno ;
 
-new Handle:l4d_kill_addhp_headshot_mult;
-new Handle:l4d_kill_addhp_noheadshot_mult;
+ConVar l4d_kill_addhp_headshot_mult;
+ConVar l4d_kill_addhp_noheadshot_mult;
 
-new Handle:l4d_kill_addhp_healthlimit;
+ConVar l4d_kill_addhp_healthlimit;
 
-new Handle:l4d_loot_weapon;
-new Handle:l4d_loot_weapon_melee;
-new Handle:l4d_loot_health;
-new Handle:l4d_loot_item;
+ConVar l4d_loot_weapon;
+ConVar l4d_loot_weapon_melee;
+ConVar l4d_loot_health;
+ConVar l4d_loot_item;
  
-public OnMapStart()
-{
+public void OnMapStart() {
 	PrecacheModel( "models/weapons/melee/v_bat.mdl", true );
 	PrecacheModel( "models/weapons/melee/v_cricket_bat.mdl", true );
 	PrecacheModel( "models/weapons/melee/v_crowbar.mdl", true );
@@ -223,7 +226,7 @@ public void OnPluginStart() {
 
 	AutoExecConfig(true, "kill_drop_v22");
  
-	decl String:GameName[16];
+	char GameName[16];
 	GetGameFolderName(GameName, sizeof(GameName));
 	if (L4DW_GetL4DVer() >= 2) {	// L4D2
 		ZOMBIECLASS_TANK=8;
@@ -232,7 +235,7 @@ public void OnPluginStart() {
 		ZOMBIECLASS_TANK=5;
 		L4D2Version=false;
 	} else {
-		SetFailState("l4d_kill_drops only supports on L4D and L4D2!");
+		SetFailState("l4d_kill_drops only supports and L4D and L4D2!");
 	}
  
 	HookEvent("player_incapacitated_start", Event_PlayerIncapacitated);
@@ -249,8 +252,7 @@ public bool ShowKillMsgOnPanel() {
 	return d==2 || d==3;
 }
  
-void AddHealth(int client, float add)
-{
+void AddHealth(int client, float add) {
 	if(add<=0.0)
 		return;
 	int hardhp = GetClientHealth(client) + 0; 
@@ -311,7 +313,7 @@ public Action Event_WitchKilled(Event event, const char[] name, bool dontBroadca
 		PrintToChatAll("\x04Witch\x03 finally killed by\x04 %N \x03",ClientId);
 	}
 
-	decl String:buff[165];
+	char buff[165];
 	Format(buff, sizeof(buff), "Witch was robbed by %N", ClientId);
 	int res = SpawnItemFromDieResult(position, GetConVarFloat(l4d_loot_witch), GetConVarFloat(l4d_loot_witch_num), buff);
 	if( ShowKillMsgOnChat() && res>0)
@@ -319,48 +321,38 @@ public Action Event_WitchKilled(Event event, const char[] name, bool dontBroadca
 
 	CreateTimer(5.0, BossDeadLaught);
 
-	if(GetConVarInt(l4d_kill_addhp_enabled)>0) {
+	if(GetConVarInt(l4d_kill_addhp_enabled) > 0)
 		AddHealth(ClientId, GetConVarFloat(l4d_kill_addhp_witch));
-	}
+	
 	return Plugin_Continue;
 }
  
-public Action:Event_PlayerIncapacitated(Handle:hEvent, const String:strName[], bool:DontBroadcast)
-{
-
+public Action Event_PlayerIncapacitated(Handle hEvent, const char[] strName, bool DontBroadcast) {
 	if(GetConVarInt(l4d_loot_enabled)==0)
-	{
 		return Plugin_Continue;
-	}
 
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
-	decl String:player_name[65];
+	char player_name[65];
 	GetClientName(client, player_name, sizeof(player_name));
 
-	decl String:buff[165];
+	char buff[165];
 
- 	new attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+ 	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
    	
-	if (attacker != 0 )
-	{
-		decl String:player_name2[65];
+	if (attacker != 0 ) {
+		char player_name2[65];
 		GetClientName(attacker, player_name2, sizeof(player_name2));
-		if( GetClientTeam(attacker) ==2) 
-		{
+		if( GetClientTeam(attacker) ==2) {
 			Format(buff, sizeof(buff), "\x04 %s \x03 incapacitated\x04 %s", player_name2, player_name);
 			PrintToChatAll(buff);
 			//PrintHintTextToAll(buff);
-		}
-		else if(GetClientTeam(attacker) ==3)
-		{
+		} else if(GetClientTeam(attacker) ==3) {
  			Format(buff, sizeof(buff), "\x04 %s \x03 incapacitated\x04 %s", player_name2, player_name);
 			PrintToChatAll(buff);
 			//PrintHintTextToAll(buff);
 		}
-	}
-	else
-	{
+	} else {
  			Format(buff, sizeof(buff), "\x04 %s \x03incapacitated", player_name);
 			PrintToChatAll(buff);
 	}
@@ -368,12 +360,10 @@ public Action:Event_PlayerIncapacitated(Handle:hEvent, const String:strName[], b
 
 	return Plugin_Continue;
 }
-public Action:IcapCry(Handle:timer, any:target)
-{
+
+public Action IcapCry(Handle timer, int target) {
 	ClientCommand(target, "vocalize PlayerDeath");
 }
-
-
 
 public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBroadcast) {
 	if(GetConVarInt(l4d_loot_enabled)==0)
@@ -705,9 +695,9 @@ L4DW_WeaponId[] GiftList_Upgrade = {
 	WEPID_INCENDIARY_AMMO,
 	WEPID_FRAG_AMMO,
 	WEPID_FIREWORKS_BOX
-}
+};
 
-int SpawnItemFromDieResult(float[] pos, float fp, float fnum, char[] msg) {
+int SpawnItemFromDieResult(float[] pos, float fp, float fnum, const char[] msg) {
 	int p = RoundFloat(fp);
 	int num = RoundFloat(fnum);
 	int r;
@@ -829,6 +819,6 @@ stock int SpawnMelee(L4DW_MeleeWeaponId mid, float[] pos) {
 	return entity_weapon;
 }
 
-stock bool IsPlayerIncapped(client) {
+stock bool IsPlayerIncapped(int client) {
 	return GetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 }
