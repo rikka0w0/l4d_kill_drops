@@ -9,6 +9,10 @@
 #define CVAR_FLAGS FCVAR_PLUGIN
 #define PLUGIN_VERSION "22"
 
+#define TEAM_SPECTATOR 1
+#define TEAM_SURVIVOR 2
+#define TEAM_INFECTED 3
+
 #define ZOMBIECLASS_SMOKER	1
 #define ZOMBIECLASS_BOOMER	2
 #define ZOMBIECLASS_HUNTER	3
@@ -17,6 +21,7 @@
 #define ZOMBIECLASS_CHARGER	6
 int ZOMBIECLASS_TANK;
 bool L4D2Version=false;
+#define ZOMBIECLASS_WITCH 9
 
 public Plugin myinfo = {
 	name = "Recover And Drop",
@@ -110,6 +115,15 @@ ConVar l4d_loot_weapon_melee;
 ConVar l4d_loot_health;
 ConVar l4d_loot_item;
  
+ 
+
+L4DW_WeaponId[] GiftList_Health = {
+	WEPID_FIRST_AID_KIT,
+	WEPID_PAIN_PILLS,
+	WEPID_ADRENALINE,
+	WEPID_DEFIBRILLATOR
+};
+ 
 public void OnMapStart() {
 	PrecacheModel( "models/weapons/melee/v_bat.mdl", true );
 	PrecacheModel( "models/weapons/melee/v_cricket_bat.mdl", true );
@@ -146,6 +160,7 @@ public void OnMapStart() {
 }
 public void OnPluginStart() {
 	SetRandomSeed(GetSysTickCount());
+	LoadTranslations("l4d_kill_drops.phrases");
 	
  	l4d_loot_enabled = CreateConVar("l4d_loot_enabled", "1", "0: disable loot from boss, 1: enable", FCVAR_PLUGIN);
 	l4d_loot_boss_show_msg = CreateConVar("l4d_loot_boss_show_msg", "1", "0:disable print loot message in HintBox, 1:disable ", FCVAR_PLUGIN);
@@ -284,40 +299,40 @@ public Action Event_WitchKilled(Event event, const char[] name, bool dontBroadca
 	int WitchId = event.GetInt("witchid");
 	float position[3];
 	GetEntPropVector(WitchId, Prop_Send, "m_vecOrigin", position);
-	PrintToChatAll("WitchPos = (%f,%f,%f)", position[0], position[1], position[2]);
-	PrintToChatAll("L4DVersion = %d", L4D2Version ? 2 : 1);
+	// PrintToChatAll("WitchPos = (%f,%f,%f)", position[0], position[1], position[2]);
+	// PrintToChatAll("L4DVersion = %d", L4D2Version ? 2 : 1);
 	if(!IsValidClient(ClientId))
 		return Plugin_Continue;
 
 	if(GetClientTeam(ClientId) != 2)
 		return Plugin_Continue;
 
+	char clientName[100], victimName[100];
+	Format(clientName, sizeof(clientName), "\x04%N\x03", ClientId);
+	for (int msgRec = 1; msgRec <= MaxClients; msgRec++) {
+		if (IsClientInGame(msgRec)) {
+			Format(victimName, sizeof(victimName), "\x04%T\x03", "Witch", msgRec);
+			PrintToChat(msgRec, "\x03%t", "Finally killed by", clientName, victimName);
+		}
+	}
+	
+	
 	int r = GetRandomInt(0, 100);
  	if(r < RoundFloat(GetConVarFloat(l4d_loot_killwitch_reward))) {
 		int r1 = GetRandomInt(0, L4D2Version ? 3 : 1);
-
-		if(r1==0) {
-			SpawnWeapon(WEPID_FIRST_AID_KIT, position);
-			PrintToChatAll("\x04Witch\x03 finally killed by \x04%N \x03and earned a \x04first aid kit",ClientId);
- 		} else if(r1==1) {
-			SpawnWeapon(WEPID_PAIN_PILLS, position);
-			PrintToChatAll("\x04Witch\x03 finally killed by \x04%N \x03and earned a \x04pills",ClientId);
-		} else if(r1==2) {
-			SpawnWeapon(WEPID_ADRENALINE, position);
-			PrintToChatAll("\x04Witch\x03 finally killed by \x04%N \x03and earned a \x04adrenaline",ClientId);
-		} if(r1==3) {
-			SpawnWeapon(WEPID_DEFIBRILLATOR, position);
-			PrintToChatAll("\x04Witch\x03 finally killed by \x04%N \x03and earned a \x04defibrillator",ClientId);
-		}
-	} else {
-		PrintToChatAll("\x04Witch\x03 finally killed by\x04 %N \x03",ClientId);
+		SpawnWeapon(GiftList_Health[r1], position);
 	}
-
-	char buff[165];
-	Format(buff, sizeof(buff), "Witch was robbed by %N", ClientId);
-	int res = SpawnItemFromDieResult(position, GetConVarFloat(l4d_loot_witch), GetConVarFloat(l4d_loot_witch_num), buff);
-	if( ShowKillMsgOnChat() && res>0)
-		PrintToChatAll("\x04Witch\x03 was robbed by\x04 %N",ClientId);
+	
+	if (SpawnItemFromDieResult(position, GetConVarFloat(l4d_loot_witch), GetConVarFloat(l4d_loot_witch_num))
+		&& GetConVarInt(l4d_loot_boss_show_msg)>0) {
+		
+		for (int msgRec = 1; msgRec <= MaxClients; msgRec++) {
+			if (IsClientInGame(msgRec)) {
+				Format(victimName, sizeof(victimName), "\x04%T\x03", "Witch", msgRec);
+				PrintToChat(msgRec, "\x03%t", "Dropped something", victimName);
+			}
+		}		
+	}
 
 	CreateTimer(5.0, BossDeadLaught);
 
@@ -334,27 +349,18 @@ public Action Event_PlayerIncapacitated(Handle hEvent, const char[] strName, boo
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	char player_name[65];
-	GetClientName(client, player_name, sizeof(player_name));
-
-	char buff[165];
+	Format(player_name, sizeof(player_name), "\x04%N\x03", client);
 
  	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
-   	
 	if (attacker != 0 ) {
 		char player_name2[65];
-		GetClientName(attacker, player_name2, sizeof(player_name2));
-		if( GetClientTeam(attacker) ==2) {
-			Format(buff, sizeof(buff), "\x04 %s \x03 incapacitated\x04 %s", player_name2, player_name);
-			PrintToChatAll(buff);
-			//PrintHintTextToAll(buff);
-		} else if(GetClientTeam(attacker) ==3) {
- 			Format(buff, sizeof(buff), "\x04 %s \x03 incapacitated\x04 %s", player_name2, player_name);
-			PrintToChatAll(buff);
-			//PrintHintTextToAll(buff);
-		}
+		Format(player_name2, sizeof(player_name2), "\x04%N\x03", attacker);
+		
+		int team = GetClientTeam(attacker);
+		if (team == 2 || team == 3)
+			PrintToChatAll("%t", "Incapacitated", player_name2, player_name);
 	} else {
- 			Format(buff, sizeof(buff), "\x04 %s \x03incapacitated", player_name);
-			PrintToChatAll(buff);
+		PrintToChatAll("%t", "Is incapacitated", player_name);
 	}
 	CreateTimer(3.0, IcapCry, client);
 
@@ -379,20 +385,19 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBr
 	GetEntPropVector(victim, Prop_Send, "m_vecOrigin", victimPos);
 	// PrintToChatAll("Event_PlayerDeath, victim.pos = [%f,%f,%f]", victimPos[0], victimPos[1], victimPos[2]);	
 	
-	if(GetClientTeam(victim) == 2) {
+	char victimName[100];
+	Format(victimName, sizeof(victimName), "\x04%N\x03", victim);
+	char attackerName[100];
+	Format(attackerName, sizeof(attackerName), "\x04%N\x03", attacker);
+	
+	if(GetClientTeam(victim) == TEAM_SURVIVOR) {
+		// Survivor is killed
  		if (attacker != 0 ) {
- 			if(GetClientTeam(attacker)==2) {
-
-				PrintToChatAll("\x04 %N \x03killed\x04 %N ", attacker, victim);
-				PrintHintTextToAll("%N killed %N ", attacker, victim);
-			} else {
- 				PrintToChatAll("\x04 %N \x03killed\x04 %N", attacker, victim);
-				PrintHintTextToAll("%N killed %N ", attacker, victim);
-			}
+			PrintToChatAll("\x03%t", "Killed", attackerName, victimName);
+			PrintHintTextToAll("%t", "Killed", attackerName, victimName);
 		} else {
-			 
-			PrintToChatAll("\x04 %N \x03dead", victim);
-			PrintHintTextToAll("%N dead", victim);
+			PrintToChatAll("\x03%t", "Is dead", victimName);
+			PrintHintTextToAll("%t", "Is dead", victimName);
 		}
 		return Plugin_Continue;
 	}
@@ -409,7 +414,6 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBr
 	    GetClientEyePosition(victim, v2);
 
 	float fdist = GetVectorDistance(v1, v2);
-	int dist=RoundFloat(fdist); 
 
 	int class = GetEntProp(victim, Prop_Send, "m_zombieClass");
 
@@ -470,14 +474,6 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBr
 		weapon2=GetConVarFloat(l4d_kill_addhp_weapon_other);
 		//PrintToChatAll("weapon :  other");
 	}
-
-	char name[65];
-	GetClientName(attacker, name, sizeof(name));
- 
-	char chatmsg[165];
-	char hintmsg[165];
-	char lootmsg[165];
- ///////////////////////////////////////////////////////////////
  
 /////////////////////////////////////////////////////////////////////////
 	float loot_num;
@@ -542,35 +538,31 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBr
 	
 	
 	if(show) {
-		Format(lootmsg, sizeof(lootmsg), "%N droped some thing", victim);
 		if(IsValidClient(attacker))	{
-			if(GetClientTeam(attacker) == 3) {
+			// Infected Team-killing
+			if(GetClientTeam(attacker) == TEAM_INFECTED) {
 				if(ShowKillMsgOnChat())
-					PrintToChatAll("\x04%N\x03 ------> \x04%N", attacker, victim);
-				SpawnItemFromDieResult(victimPos, loot_p, loot_num, lootmsg);
+					PrintToChatAll("\x03%t", "Killed2", attackerName, victimName);
+				if(SpawnItemFromDieResult(victimPos, loot_p, loot_num))
+					PrintToChatAll("\x03%t", "Dropped something", victimName);
 				return Plugin_Continue;
 			}
 		} else {
+			// Invalid attacker, suicide??
 			if(ShowKillMsgOnChat())
-				PrintToChatAll("\x04%N\x03 dead", victim);
-			SpawnItemFromDieResult(victimPos, loot_p, loot_num,lootmsg);
+				PrintToChatAll("\x03%t", "Is dead", victimName);
+			if(SpawnItemFromDieResult(victimPos, loot_p, loot_num))
+				PrintToChatAll("\x03%t", "Dropped something", victimName);
 			return Plugin_Continue;
 		}
- 		if(headshot)
-		{
+		
+		// Survivor killed infected
+ 		if(headshot) {
 			lootheadmult=GetConVarFloat(l4d_loot_headshot);
 			headhpmult=GetConVarFloat(l4d_kill_addhp_headshot_mult);
-			Format(hintmsg, sizeof(hintmsg),  "headshot", dist);
-			Format(chatmsg, sizeof(chatmsg), "\x04%N\x03 -headshot-> \x04%N", attacker,victim);
-			
-			ClientCommand(attacker, "vocalize PlayerNiceShot");
-			CreateTimer(1.0, OneLaught, attacker);
 		} else {
 			lootheadmult=GetConVarFloat(l4d_loot_headshotno);
 			headhpmult=GetConVarFloat(l4d_kill_addhp_noheadshot_mult);
-
-			Format(hintmsg, sizeof(hintmsg),  "kill", dist);
-			Format(chatmsg, sizeof(chatmsg), "\x04%N\x03 ------> \x04%N", attacker,victim);
 		}
  
 		float x1=0.0;
@@ -583,59 +575,55 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] strName, bool DontBr
 		weaponmult=(fdist*(y2-y1)-x1*y2+y1*x2)/(x2-x1);
 		float addhp= headhpmult*kindmult*weaponmult*addhpmult;
 		difficult=RoundFloat(addhp);
- 
+  
  		if(GetConVarInt(l4d_kill_addhp_enabled)>0)
-		{
 			AddHealth(attacker, addhp);
-		}
-		Format(hintmsg, sizeof(hintmsg),  "%s, hp + %i", hintmsg, difficult);
-
- 		if(ShowKillMsgOnChat()) {
-			Format(chatmsg, sizeof(chatmsg), "%s\x03 (%i)", chatmsg, difficult);
-			PrintToChatAll(chatmsg);
-		}
-
- 		if(SpawnItemFromDieResult(victimPos, loot_p*lootheadmult, loot_num,lootmsg)==0)
- 			if(ShowKillMsgOnPanel())PrintHintText(attacker, hintmsg);
+		
+ 		if(SpawnItemFromDieResult(victimPos, loot_p*lootheadmult, loot_num))
+			PrintToChatAll("\x03%t", "Dropped something", victimName);
+			
+		if(headshot) {
+			ClientCommand(attacker, "vocalize PlayerNiceShot");
+			CreateTimer(1.0, OneLaught, attacker);
+			
+			if(ShowKillMsgOnChat())
+				PrintToChatAll("\x03%t \x03 (+%i)", "Headshot2", attackerName, victimName, difficult);
+			if(ShowKillMsgOnPanel())
+				PrintHintText(attacker, "\x03%t \x03 (+%i)", "Headshot", attackerName, victimName, difficult);		
+		} else {
+			if(ShowKillMsgOnChat())
+				PrintToChatAll("\x03%t \x03 (+%i)", "Killed2", attackerName, victimName, difficult);
+			if(ShowKillMsgOnPanel())
+				PrintHintText(attacker, "\x03%t \x03 (+%i)", "Killed", attackerName, victimName, difficult);						
+		}	
 	}
 
-	if (class == ZOMBIECLASS_TANK) {
+	if (class == ZOMBIECLASS_TANK) {	
 		if(IsValidClient(attacker) && GetClientTeam(attacker) == 2) {	
 			int r = GetRandomInt(0, 100);
 			if(r < RoundFloat(GetConVarFloat(l4d_loot_killtank_reward))) {
 				int r1 = GetRandomInt(0, L4D2Version ? 3 : 1);
-				if(r1==0) {
-					SpawnWeapon(WEPID_FIRST_AID_KIT, victimPos);
-					PrintToChatAll("\x04%N\x03 finally killed by\x04 %N \x03and earned a \x04first aid kit",victim, attacker);
- 				} else if(r1==1) {
-					SpawnWeapon(WEPID_PAIN_PILLS, victimPos);
-					PrintToChatAll("\x04%N\x03 finally killed by\x04 %N \x03and earned a \x04pills",victim, attacker);
-				} else if(r1==2) {
-					SpawnWeapon(WEPID_ADRENALINE, victimPos);
-					PrintToChatAll("\x04%N\x03 finally killed by\x04 %N \x03and earned a \x04adrenaline",victim, attacker);
-				} else if(r1==3) {
-					SpawnWeapon(WEPID_DEFIBRILLATOR, victimPos);
-					PrintToChatAll("\x04%N\x03 finally killed by\x04 %N \x03and earned a \x04defibrillator",victim, attacker);
-				}
-			} else {
-				 Format(chatmsg, sizeof(chatmsg), "\x04%N\x03 finally killed by\x04 %N",victim, attacker);
+				SpawnWeapon(GiftList_Health[r1], victimPos);
 			}
+			
+			if(ShowKillMsgOnChat())
+				PrintToChatAll("\x03%t", "Finally killed by", victimName, attackerName);
 
 			if(GetConVarInt(l4d_kill_addhp_enabled)>0)
 				AddHealth(attacker, GetConVarFloat(l4d_kill_addhp_tank));
 		}
- 		else if(attacker==victim) {
- 			Format(chatmsg, sizeof(chatmsg), "\x04%N\x03 killed self", victim);
+ 		else if(attacker == victim) {
+			if(ShowKillMsgOnChat())
+				PrintToChatAll("\x04%t", "Suicide", victimName);
 		} else {
- 			Format(chatmsg, sizeof(chatmsg), "\x04%N\x03 dead",victim);
+			if(ShowKillMsgOnChat())
+				PrintToChatAll("\x03%t", "Is dead", victimName);
 		}
 		
-  		SpawnItemFromDieResult(victimPos, GetConVarFloat(l4d_loot_tank), GetConVarFloat(l4d_loot_tank_num),"Tank droped some thing");
+  		if(SpawnItemFromDieResult(victimPos, GetConVarFloat(l4d_loot_tank), GetConVarFloat(l4d_loot_tank_num)))
+			PrintToChatAll("\x03%t", "Dropped something", victimName);
+		
 		CreateTimer(5.0, BossDeadLaught);
- 		if(ShowKillMsgOnChat())
-		{
-			 PrintToChatAll(chatmsg);
-		} 
 	}
 	return Plugin_Continue;
 }
@@ -697,7 +685,7 @@ L4DW_WeaponId[] GiftList_Upgrade = {
 	WEPID_FIREWORKS_BOX
 };
 
-int SpawnItemFromDieResult(float[] pos, float fp, float fnum, const char[] msg) {
+bool SpawnItemFromDieResult(float[] pos, float fp, float fnum) {
 	int p = RoundFloat(fp);
 	int num = RoundFloat(fnum);
 	int r;
@@ -712,10 +700,7 @@ int SpawnItemFromDieResult(float[] pos, float fp, float fnum, const char[] msg) 
 		if(!L4D2Version) {
 			b=b+c;
 			c=0;
-		}
-		
-		if(GetConVarInt(l4d_loot_boss_show_msg)>0)
-			PrintHintTextToAll(msg);
+		}		
 
 		for(int i=0; i<num ; i++) {
 			r = GetRandomInt(0, a+b+c+d);
@@ -739,9 +724,9 @@ int SpawnItemFromDieResult(float[] pos, float fp, float fnum, const char[] msg) 
 				SpawnWeapon(GiftList_Upgrade[r1], pos);
  			}
 		}
-		return 1;
+		return true;
 	} else {
-		return 0;
+		return false;
 	}
 }
  
