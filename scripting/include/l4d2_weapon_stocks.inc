@@ -454,7 +454,7 @@ stock int L4DW_PrepareMeleeEntity(L4DW_MeleeWeaponId wepid) {
 	int entity_weapon = CreateEntityByName("weapon_melee");
 	if (entity_weapon == -1)
 		return -1;
-	PrintToServer("Melee: %s", MeleeWeaponNames[wepid]);
+
 	DispatchKeyValue(entity_weapon, "melee_script_name", MeleeWeaponNames[wepid]);
 	
 	return entity_weapon;

@@ -312,7 +312,7 @@ public Action Event_WitchKilled(Event event, const char[] name, bool dontBroadca
 	for (int msgRec = 1; msgRec <= MaxClients; msgRec++) {
 		if (IsClientInGame(msgRec)) {
 			Format(victimName, sizeof(victimName), "\x04%T\x03", "Witch", msgRec);
-			PrintToChat(msgRec, "\x03%t", "Finally killed by", clientName, victimName);
+			PrintToChat(msgRec, "\x03%t", "Finally killed by", victimName, clientName);
 		}
 	}
 	
